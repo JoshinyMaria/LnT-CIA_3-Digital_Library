@@ -10,10 +10,10 @@ University libraries currently maintain borrowing records in bulky manual regist
 
 | Name | Roll No | Department | Section |
 |------|---------|------------|---------|
-| Khushi K. (Team Lead) | — | Computer Science | — |
-| — | — | Computer Science | — |
-| — | — | Computer Science | — |
-| — | — | Computer Science | — |
+| Khushi K. Sheth | 2462098 | ADSE | 5BTCSAIML C |
+| Joann Binny |  | ADSE | 5BTCSAIML C |
+| Joshiny Maria | — | ADSE | 5BTCSAIML C |
+| Krishna S Nair| — | ADSE | 5BTCSAIML C |
 
 > Before submitting, replace the `—` cells with the actual names and roll numbers of all team members.
 
