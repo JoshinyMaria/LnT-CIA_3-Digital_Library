@@ -1,0 +1,1575 @@
+{
+  "info": {
+    "_postman_id": "e2e00000-0000-4000-8000-000000000001",
+    "name": "Digital Library Management System",
+    "description": "End-to-end test collection: Register → Login (JWT) → Search → Issue → Borrowing limit → Return → Fine → Payment → History → Hold → Notification → Reports. Includes ownership (403) and RBAC (403) negative tests. Run from top to bottom in order.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Register Member (public)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{x}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"E2E Member\",\n  \"email\": \"e2e@student.com\",\n  \"password\": \"password123\",\n  \"memberType\": \"student\",\n  \"phone\": \"1234567890\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 201\", function(){ pm.expect(pm.response.code).to.eql(201); });",
+              "var j=pm.response.json(); pm.test(\"role forced to member\", function(){ pm.expect(j.data.user.role).to.eql(\"member\"); });\n       if(j.success){ pm.collectionVariables.set(\"memberId\", j.data.user._id); pm.collectionVariables.set(\"e2eToken\", j.data.token); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "1b. Register as ADMIN forbidden",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{x}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Evil Admin\",\n  \"email\": \"eviladmin@student.com\",\n  \"password\": \"password123\",\n  \"role\": \"admin\",\n  \"memberType\": \"student\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 403\", function(){ pm.expect(pm.response.code).to.eql(403); });",
+              "pm.test(\"role escalation blocked\", function(){ pm.expect(pm.response.json().errorCode).to.eql(\"ROLE_FORBIDDEN\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Login Member John",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{x}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"john@student.com\",\n  \"password\": \"password123\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });",
+              "var j=pm.response.json(); if(j.success){ pm.collectionVariables.set(\"johnId\", j.data.user._id); pm.collectionVariables.set(\"johnToken\", j.data.token); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2b. Login Member Jane",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{x}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"jane@student.com\",\n  \"password\": \"password123\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });",
+              "var j=pm.response.json(); if(j.success){ pm.collectionVariables.set(\"janeId\", j.data.user._id); pm.collectionVariables.set(\"janeToken\", j.data.token); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2c. Login Librarian",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{x}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"librarian@library.com\",\n  \"password\": \"lib123\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });",
+              "var j=pm.response.json(); if(j.success){ pm.collectionVariables.set(\"librarianToken\", j.data.token); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2d. Login Admin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{x}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@library.com\",\n  \"password\": \"admin123\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });",
+              "var j=pm.response.json(); if(j.success){ pm.collectionVariables.set(\"adminToken\", j.data.token); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Get Profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/profile"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3b. Get All Users (Admin)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/users"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3c. Create Librarian (Admin)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/librarian"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"New Librarian\",\n  \"email\": \"lib2@library.com\",\n  \"password\": \"lib12345\",\n  \"phone\": \"1112223333\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 201\", function(){ pm.expect(pm.response.code).to.eql(201); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Get All Books",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/books"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4b. Search Books",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/books/search?title=introduction&available=true"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4c. Add Book A",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/books"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"The Pragmatic Programmer\",\n  \"author\": \"Andrew Hunt\",\n  \"isbn\": \"978-0201616224\",\n  \"category\": \"Computer Science\",\n  \"description\": \"Journey to mastery in software development\",\n  \"totalCopies\": 3\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 201\", function(){ pm.expect(pm.response.code).to.eql(201); });",
+              "var j=pm.response.json(); if(j.success){ pm.collectionVariables.set(\"bookA_id\", j.data._id); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4d. Add Book B",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/books"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Clean Code\",\n  \"author\": \"Robert C. Martin\",\n  \"isbn\": \"978-0132350884\",\n  \"category\": \"Computer Science\",\n  \"description\": \"Principles of clean, maintainable code\",\n  \"totalCopies\": 2\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 201\", function(){ pm.expect(pm.response.code).to.eql(201); });",
+              "var j=pm.response.json(); if(j.success){ pm.collectionVariables.set(\"bookB_id\", j.data._id); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4e. Add Book C",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/books"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Design Patterns\",\n  \"author\": \"Erich Gamma\",\n  \"isbn\": \"978-0201633610\",\n  \"category\": \"Computer Science\",\n  \"description\": \"Reusable object-oriented software\",\n  \"totalCopies\": 2\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 201\", function(){ pm.expect(pm.response.code).to.eql(201); });",
+              "var j=pm.response.json(); if(j.success){ pm.collectionVariables.set(\"bookC_id\", j.data._id); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4f. Add Book D",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/books"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Refactoring\",\n  \"author\": \"Martin Fowler\",\n  \"isbn\": \"978-0201485677\",\n  \"category\": \"Computer Science\",\n  \"description\": \"Improving the design of existing code\",\n  \"totalCopies\": 1\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 201\", function(){ pm.expect(pm.response.code).to.eql(201); });",
+              "var j=pm.response.json(); if(j.success){ pm.collectionVariables.set(\"bookD_id\", j.data._id); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4g. Update Book A",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/books/{{bookA_id}}"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"totalCopies\": 5\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Issue Book A to John",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/transactions/issue"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"bookId\": \"{{bookA_id}}\",\n  \"memberId\": \"{{johnId}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 201\", function(){ pm.expect(pm.response.code).to.eql(201); });",
+              "var j=pm.response.json(); if(j.success){ pm.collectionVariables.set(\"txnA_id\", j.data._id); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5b. Issue Book B to John",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/transactions/issue"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"bookId\": \"{{bookB_id}}\",\n  \"memberId\": \"{{johnId}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 201\", function(){ pm.expect(pm.response.code).to.eql(201); });",
+              "var j=pm.response.json(); if(j.success){ pm.collectionVariables.set(\"txnB_id\", j.data._id); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5c. Issue Book C to John",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/transactions/issue"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"bookId\": \"{{bookC_id}}\",\n  \"memberId\": \"{{johnId}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 201\", function(){ pm.expect(pm.response.code).to.eql(201); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5d. Issue Book D EXCEEDS limit",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/transactions/issue"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"bookId\": \"{{bookD_id}}\",\n  \"memberId\": \"{{johnId}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 409\", function(){ pm.expect(pm.response.code).to.eql(409); });",
+              "pm.test(\"borrowing limit enforced\", function(){ pm.expect(pm.response.json().errorCode).to.eql(\"BORROWING_LIMIT_REACHED\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Generate Overdue Notifications",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/notifications/generate-overdue"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });",
+              "var j=pm.response.json(); pm.test(\"notifications generated\", function(){ pm.expect(j.data.count).to.be.above(0); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6b. Member Notifications (Jane)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{janeToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/notifications/member/{{janeId}}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });",
+              "var j=pm.response.json(); if(j.success && j.data.length){ pm.collectionVariables.set(\"notification_id\", j.data[0]._id); }\n       pm.test(\"has notifications\", function(){ pm.expect(j.data.length).to.be.above(0); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6c. Mark Notification Read (Jane)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{janeToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/notifications/{{notification_id}}/read"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });",
+              "pm.test(\"isRead true\", function(){ pm.expect(pm.response.json().data.isRead).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6d. Mark READ as OTHER member forbidden",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{e2eToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/notifications/{{notification_id}}/read"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 403\", function(){ pm.expect(pm.response.code).to.eql(403); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6e. Mark All Notifications Read (Jane)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{janeToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/notifications/read-all"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6f. Overdue Report",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/admin/reports/overdue"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });",
+              "var j=pm.response.json(); pm.test(\"overdue data present\", function(){ pm.expect(j.data.totalOverdue).to.be.above(0); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6g. Get All Transactions - capture overdue ids",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/transactions"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var j=pm.response.json();\n      var janeId=pm.collectionVariables.get(\"janeId\");\n      var od=j.data.transactions.filter(function(t){ return t.status===\"overdue\" && t.memberId && t.memberId._id===janeId; });\n      if(od[0]) pm.collectionVariables.set(\"overdue1_id\", od[0]._id);\n      if(od[1]) pm.collectionVariables.set(\"overdue2_id\", od[1]._id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Return overdue txn 1 (plan fine)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/transactions/{{overdue1_id}}/return"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });",
+              "var j=pm.response.json(); pm.test(\"fine computed\", function(){ pm.expect(j.data.fine).to.be.above(0); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7b. Return overdue txn 2 (plan fine)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/transactions/{{overdue2_id}}/return"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });",
+              "var j=pm.response.json(); pm.test(\"fine computed\", function(){ pm.expect(j.data.fine).to.be.above(0); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Pay Fine (Jane pays own)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{janeToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/fines/pay"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"transactionId\": \"{{overdue1_id}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 201\", function(){ pm.expect(pm.response.code).to.eql(201); });",
+              "var j=pm.response.json(); pm.test(\"amount recorded\", function(){ pm.expect(j.data.amount).to.be.above(0); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8b. Pay Fine as OTHER member forbidden",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{e2eToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/fines/pay"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"transactionId\": \"{{overdue2_id}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 403\", function(){ pm.expect(pm.response.code).to.eql(403); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8c. Waive Fine (Librarian)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/fines/waive"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"transactionId\": \"{{overdue2_id}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8d. All Fine Payments (Librarian)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/fines"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8e. Fine History (Jane)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{janeToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/fines/member/{{janeId}}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });",
+              "var j=pm.response.json(); pm.test(\"fine history recorded\", function(){ pm.expect(j.data.length).to.be.above(0); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8f. Fine History of OTHERS forbidden",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{e2eToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/fines/member/{{janeId}}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 403\", function(){ pm.expect(pm.response.code).to.eql(403); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Borrowing History (Jane own)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{janeToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/transactions/member/{{janeId}}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9b. Borrowing History of OTHERS forbidden",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{e2eToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/transactions/member/{{johnId}}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 403\", function(){ pm.expect(pm.response.code).to.eql(403); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Place Hold (John on Book D)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{johnToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/holds"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"bookId\": \"{{bookD_id}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 201\", function(){ pm.expect(pm.response.code).to.eql(201); });",
+              "var j=pm.response.json(); if(j.success){ pm.collectionVariables.set(\"hold_id\", j.data._id); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10b. Member Holds (John)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{johnToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/holds/member/{{johnId}}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10c. Holds for a Book",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{johnToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/holds/book/{{bookD_id}}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10d. Cancel Hold (John)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{johnToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/holds/{{hold_id}}/cancel"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10e. All Holds (Librarian)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/holds"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. Get All Plans",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/memberships"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11b. Create Plan (Admin)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/memberships"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Guest Plan\",\n  \"memberType\": \"student\",\n  \"maxBooksAllowed\": 2,\n  \"loanDurationDays\": 7,\n  \"maxRenewals\": 0,\n  \"finePerDay\": 3\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 201\", function(){ pm.expect(pm.response.code).to.eql(201); });",
+              "var j=pm.response.json(); if(j.success){ pm.collectionVariables.set(\"plan_id\", j.data._id); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11c. Update Plan (Admin)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/memberships/{{plan_id}}"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"maxBooksAllowed\": 5\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12. Most Borrowed Books",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/admin/reports/most-borrowed?limit=10"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12b. Inventory Health",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/admin/reports/inventory"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12c. Update Copy Status",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/admin/reports/inventory/{{bookA_id}}/copy-status"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"damagedCopies\": 1\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13. Member cannot list ALL transactions",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{johnToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/transactions"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 403\", function(){ pm.expect(pm.response.code).to.eql(403); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13b. Member cannot create books",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{johnToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/books"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Nope\",\n  \"author\": \"Nope\",\n  \"isbn\": \"978-0000000001\",\n  \"category\": \"X\",\n  \"totalCopies\": 1\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 403\", function(){ pm.expect(pm.response.code).to.eql(403); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13c. Delete Book D (Librarian)",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{librarianToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/books/{{bookD_id}}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", function(){ pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "memberId",
+      "value": ""
+    },
+    {
+      "key": "e2eToken",
+      "value": ""
+    },
+    {
+      "key": "johnToken",
+      "value": ""
+    },
+    {
+      "key": "janeToken",
+      "value": ""
+    },
+    {
+      "key": "librarianToken",
+      "value": ""
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "johnId",
+      "value": ""
+    },
+    {
+      "key": "janeId",
+      "value": ""
+    },
+    {
+      "key": "bookA_id",
+      "value": ""
+    },
+    {
+      "key": "bookB_id",
+      "value": ""
+    },
+    {
+      "key": "bookC_id",
+      "value": ""
+    },
+    {
+      "key": "bookD_id",
+      "value": ""
+    },
+    {
+      "key": "txnA_id",
+      "value": ""
+    },
+    {
+      "key": "txnB_id",
+      "value": ""
+    },
+    {
+      "key": "txnC_id",
+      "value": ""
+    },
+    {
+      "key": "overdue1_id",
+      "value": ""
+    },
+    {
+      "key": "overdue2_id",
+      "value": ""
+    },
+    {
+      "key": "hold_id",
+      "value": ""
+    },
+    {
+      "key": "notification_id",
+      "value": ""
+    },
+    {
+      "key": "plan_id",
+      "value": ""
+    }
+  ]
+}
